@@ -27,3 +27,10 @@ The repository also includes performance evaluation figures:
 Displays the classification performance for different signs.
 # Classification Report
 Provides precision, recall, F1-score, and accuracy metrics for each class.
+
+# Clone the Repository
+git clone https://github.com/your-username/Mobile-Net-Based-Sign-Language-Recognition.git
+cd Mobile-Net-Based-Sign-Language-Recognition
+
+# Install Dependencies
+pip install -r requirements.txt
