@@ -27,13 +27,3 @@ The repository also includes performance evaluation figures:
 Displays the classification performance for different signs.
 # Classification Report
 Provides precision, recall, F1-score, and accuracy metrics for each class.
-
-# Requirements
-Python	3.8,
-TensorFlow	2.8.0,
-NumPy	1.20.8,
-Pandas	1.2.9,
-Scikit-learn	0.24.1,
-Matplotlib	3.4.2,
-Seaborn	0.11.2,
-Jupyter Notebook	6.4.2,
