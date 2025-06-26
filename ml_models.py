@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
 
 import numpy as np
 import tensorflow as tf
@@ -15,10 +10,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
-
-
-# In[ ]:
-
 
 
 X_train = np.load("X_train.npy")
@@ -170,8 +161,6 @@ display_results(DT, y_pred_dt, "Decision Tree")
     plt.ylabel("Actual Label")
     plt.show()
 
-
-# In[ ]:
 
 
 
