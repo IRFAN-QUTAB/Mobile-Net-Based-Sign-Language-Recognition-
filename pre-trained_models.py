@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
 
 import numpy as np
 import tensorflow as tf
@@ -54,9 +49,6 @@ for opt_name, optimizer in optimizers.items():
 
     print(f"\nDenseNet169 with {opt_name} - Classification Report:\n")
     print(classification_report(y_true, y_pred))
-
-
-# In[ ]:
 
 
 import numpy as np
@@ -111,9 +103,6 @@ for opt_name, optimizer in optimizers.items():
     print(classification_report(y_true, y_pred))
 
 
-# In[ ]:
-
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.applications import Xception
@@ -163,8 +152,6 @@ for opt_name, optimizer in optimizers.items():
     print(classification_report(y_true, y_pred))
 
 
-# In[ ]:
-
 
 import numpy as np
 import tensorflow as tf
@@ -213,8 +200,6 @@ for opt_name, optimizer in optimizers.items():
     print(f"\nNASNetMobile with {opt_name} - Classification Report:\n")
     print(classification_report(y_true, y_pred))
 
-
-# In[ ]:
 
 
 
