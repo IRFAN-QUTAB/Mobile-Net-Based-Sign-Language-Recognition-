@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
 
 import tensorflow as tf
 from tensorflow.keras.models import Model
@@ -19,10 +14,6 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
 
-# In[ ]:
-
-
-
 X = np.load("/content/drive/MyDrive/ASL_preprocessed_images.npy")
 y = np.load("/content/drive/MyDrive/ASL_labels.npy")
 
@@ -34,9 +25,6 @@ y = to_categorical(y, num_classes)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
 print(f"Training samples: {X_train.shape[0]}, Testing samples: {X_test.shape[0]}")
-
-
-# In[ ]:
 
 
 import tensorflow as tf
@@ -111,10 +99,6 @@ for params in ParameterGrid(param_grid):
 print(f"Best Hyperparameters: {best_params} with Accuracy: {best_acc:.4f}")
 
 
-# In[ ]:
-
-
-
 optimizer = Adam(learning_rate=0.001)
 model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"])
 
@@ -123,9 +107,6 @@ history = model.fit(X_train, y_train, validation_data=(X_test, y_test),
 
 model.save("/content/drive/MyDrive/ASL_MobileNet_100epochs.h5")
 print("Model training completed and saved successfully!")
-
-
-# In[ ]:
 
 
 model = tf.keras.models.load_model("/content/drive/MyDrive/ASL_MobileNet_100epochs.h5")
@@ -139,8 +120,6 @@ features = feature_extractor.predict(image_batch)
 
 features = features.reshape(features.shape[0], -1)  
 
-
-# In[ ]:
 
 
 pca = PCA(n_components=2)
@@ -172,8 +151,6 @@ axes[1].set_title("t-SNE Feature Representation")
 plt.tight_layout()
 plt.show()
 
-
-# In[ ]:
 
 
 
