@@ -103,8 +103,5 @@ for ax in axes:
 plt.show()
 
 
-# In[ ]:
-
-
 
 
