@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
 
 
 import cv2
@@ -10,9 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-
-
-# In[ ]:
 
 
 
@@ -27,9 +20,6 @@ if os.path.exists(DATASET_PATH):
     print("Dataset found at:", DATASET_PATH)
 else:
     print("Error: Dataset path not found!")
-
-
-# In[ ]:
 
 
 
@@ -62,9 +52,6 @@ images, labels, class_names = load_images_from_folder(DATASET_PATH)
 print(f"Loaded {len(images)} images from {len(class_names)} classes.")
 
 
-# In[ ]:
-
-
 def remove_no_sign_images(images, labels):
     filtered_images = []
     filtered_labels = []
@@ -84,9 +71,6 @@ images, labels = remove_no_sign_images(images, labels)
 print(f"Filtered dataset size: {len(images)} images.")
 
 
-# In[ ]:
-
-
 def augment_images(images):
     augmented_images = []
     
@@ -101,9 +85,6 @@ def augment_images(images):
 
 augmented_images = augment_images(images)
 print(f"Total augmented images: {len(augmented_images)}")
-
-
-# In[ ]:
 
 
 
