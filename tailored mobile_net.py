@@ -1,35 +1,23 @@
-
-import tensorflow as tf
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Conv2D, AveragePooling2D, Flatten, Dense, Input
-from tensorflow.keras.optimizers import Adam, RMSprop, SGD, Adagrad
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from sklearn.model_selection import train_test_split, GridSearchCV
-import tensorflow as tf
+import os
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 import cv2
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
-
-
-X = np.load("/content/drive/MyDrive/ASL_preprocessed_images.npy")
-y = np.load("/content/drive/MyDrive/ASL_labels.npy")
-
-X = X.astype("float32") / 255.0
-
-num_classes = len(np.unique(y))
-y = to_categorical(y, num_classes)
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-print(f"Training samples: {X_train.shape[0]}, Testing samples: {X_test.shape[0]}")
-
-
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, DepthwiseConv2D, BatchNormalization, ReLU, GlobalAveragePooling2D, Flatten, Dense, Input
-from tensorflow.keras.models import Model
+from tensorflow import keras
+from tensorflow.keras.applications import MobileNetV2
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout, LayerNormalization
+from tensorflow.keras.models import Model, Sequential
+import pickle
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 def build_mobilenet_model(input_shape=(224, 224, 3), num_classes=26):
     inputs = Input(shape=input_shape)
@@ -55,103 +43,133 @@ def build_mobilenet_model(input_shape=(224, 224, 3), num_classes=26):
     model = Model(inputs, outputs)
     return model
 
-model = build_mobilenet_model()
-model.summary()
+# 2. Self-Attention Block
+def build_self_attention_block():
+    """Build Self-Attention mechanism for feature enhancement"""
+    
+    class SelfAttention(keras.layers.Layer):
+        def __init__(self, units):
+            super(SelfAttention, self).__init__()
+            self.units = units
+            
+        def build(self, input_shape):
+            self.W_query = Dense(self.units)
+            self.W_key = Dense(self.units)
+            self.W_value = Dense(self.units)
+            self.W_output = Dense(input_shape[-1])
+            
+        def call(self, x):
+            # For CNN features, we need to reshape
+            batch_size = tf.shape(x)[0]
+            height = tf.shape(x)[1]
+            width = tf.shape(x)[2]
+            channels = x.shape[-1]
+            
+            # Reshape to (batch, height*width, channels)
+            x_reshaped = tf.reshape(x, [batch_size, height * width, channels])
+            
+            # Compute Q, K, V
+            Q = self.W_query(x_reshaped)
+            K = self.W_key(x_reshaped)
+            V = self.W_value(x_reshaped)
+            
+            # Compute attention scores
+            scores = tf.matmul(Q, K, transpose_b=True)
+            scores = scores / tf.math.sqrt(tf.cast(self.units, tf.float32))
+            
+            # Apply softmax
+            attention_weights = tf.nn.softmax(scores, axis=-1)
+            
+            # Apply attention to values
+            attention_output = tf.matmul(attention_weights, V)
+            
+            # Final linear transformation
+            output = self.W_output(attention_output)
+            
+            # Reshape back to original shape
+            output = tf.reshape(output, [batch_size, height, width, channels])
+            
+            # Add residual connection
+            output = x + output
+            
+            return output
+    
+    # Build the self-attention model
+    inputs = keras.Input(shape=(224, 224, 3))
+    
+    # Initial convolution layers to extract features
+    x = keras.layers.Conv2D(64, 3, padding='same', activation='relu')(inputs)
+    x = keras.layers.MaxPooling2D(2)(x)
+    x = keras.layers.Conv2D(128, 3, padding='same', activation='relu')(x)
+    x = keras.layers.MaxPooling2D(2)(x)
+    x = keras.layers.Conv2D(256, 3, padding='same', activation='relu')(x)
+    
+    # Apply self-attention
+    x = SelfAttention(units=128)(x)
+    
+    # Final pooling and dense layers
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(256, activation='relu')(x)
+    x = Dropout(0.3)(x)
+    outputs = Dense(256, activation='relu')(x)
+    
+    model = Model(inputs, outputs, name="Self_Attention_Block")
+    return model
 
+# Build individual models
+mobilenet_model = build_mobilenet_extractor()
+self_attention_model = build_self_attention_block()
 
-# In[ ]:
+print(f"✓ MobileNet extractor built: Output shape = {mobilenet_model.output_shape}")
+print(f"✓ Self-Attention block built: Output shape = {self_attention_model.output_shape}")
 
+# ============================================
+# CELL 6: BUILD HYBRID MODEL
+# ============================================
+print("Building hybrid MobileNet + Self-Attention model...")
 
-from sklearn.model_selection import ParameterGrid
+# Combine both models
+inputs = keras.Input(shape=(224, 224, 3))
 
-param_grid = {
-    "batch_size": [32, 64],
-    "learning_rate": [0.001, 0.0001],
-    "optimizer": ["adam", "rmsprop", "sgd", "adagrad"]
-}
+# Get features from both models
+mobilenet_features = mobilenet_model(inputs)
+attention_features = self_attention_model(inputs)
 
-best_acc = 0
-best_params = {}
+# Concatenate features
+combined = keras.layers.Concatenate()([mobilenet_features, attention_features])
+combined = Dropout(0.3)(combined)
+combined = Dense(512, activation='relu')(combined)
+combined = LayerNormalization()(combined)  # Add layer normalization
+combined = Dropout(0.2)(combined)
+outputs = Dense(256, activation='relu')(combined)
 
-for params in ParameterGrid(param_grid):
-    print(f"Testing params: {params}")
+# Create hybrid model
+hybrid_model = Model(inputs, outputs, name="MobileNet_SelfAttention_Hybrid")
 
-    if params["optimizer"] == "adam":
-        optimizer = Adam(learning_rate=params["learning_rate"])
-    elif params["optimizer"] == "rmsprop":
-        optimizer = RMSprop(learning_rate=params["learning_rate"])
-    elif params["optimizer"] == "sgd":
-        optimizer = SGD(learning_rate=params["learning_rate"])
-    else:
-        optimizer = Adagrad(learning_rate=params["learning_rate"])
+print(f"✓ Hybrid model built")
+print(f"✓ Input shape: {hybrid_model.input_shape}")
+print(f"✓ Output shape: {hybrid_model.output_shape}")
+print(f"✓ Total parameters: {hybrid_model.count_params():,}")
 
-    model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"])
+# Compile the model for better initialization
+hybrid_model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy'
+)
+print("✓ Model compiled and ready for feature extraction")
 
-    history = model.fit(X_train, y_train, validation_data=(X_test, y_test),
-                        batch_size=params["batch_size"], epochs=10, verbose=1)
+# Create feature extractor (remove final softmax layer)
+feature_extractor = Model(
+    inputs=hybrid_model.input,
+    outputs=hybrid_model.layers[-3].output  # the Dense(512, relu) layer
+)
 
-    _, acc = model.evaluate(X_test, y_test, verbose=0)
- 
-    if acc > best_acc:
-        best_acc = acc
-        best_params = params
+X_train_features = feature_extractor.predict(X_train, batch_size=32, verbose=1)
+print(f"✓ Training features extracted: {X_train_features.shape}")
 
-print(f"Best Hyperparameters: {best_params} with Accuracy: {best_acc:.4f}")
+X_test_features = feature_extractor.predict(X_test, batch_size=32, verbose=1)
+print(f"✓ Test features extracted: {X_test_features.shape}")
 
-
-optimizer = Adam(learning_rate=0.001)
-model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"])
-
-history = model.fit(X_train, y_train, validation_data=(X_test, y_test),
-                    batch_size=32, epochs=100, verbose=1)
-
-model.save("/content/drive/MyDrive/ASL_MobileNet_100epochs.h5")
-print("Model training completed and saved successfully!")
-
-
-model = tf.keras.models.load_model("/content/drive/MyDrive/ASL_MobileNet_100epochs.h5")
-feature_extractor = tf.keras.Model(inputs=model.input, outputs=model.get_layer(index=-3).output)
-num_samples = 100
-random_indices = np.random.choice(X_test.shape[0], num_samples, replace=False)
-image_batch = X_test[random_indices]  
-image_batch = image_batch.astype("float32") / 255.0
-
-features = feature_extractor.predict(image_batch)
-
-features = features.reshape(features.shape[0], -1)  
-
-
-
-pca = PCA(n_components=2)
-pca_features = pca.fit_transform(features)
-
-tsne = TSNE(n_components=2, random_state=42, perplexity=10)
-tsne_features = tsne.fit_transform(features)
-
-# Create a combined figure with two subplots (PCA & t-SNE)
-fig, axes = plt.subplots(1, 2, figsize=(14, 6))  # 1 row, 2 columns
-
-# Plot PCA Scatter Plot
-axes[0].scatter(pca_features[:, 0], pca_features[:, 1], c='blue', label="PCA Projection")
-axes[0].set_xlabel("Feature Dimension 1")
-axes[0].set_ylabel("Feature Dimension 2")
-axes[0].legend()
-axes[0].grid()
-axes[0].set_title("PCA Feature Representation")
-
-# Plot t-SNE Scatter Plot
-axes[1].scatter(tsne_features[:, 0], tsne_features[:, 1], c='red', label="t-SNE Projection")
-axes[1].set_xlabel("Embedded Feature 1")
-axes[1].set_ylabel("Embedded Feature 2")
-axes[1].legend()
-axes[1].grid()
-axes[1].set_title("t-SNE Feature Representation")
-
-# Adjust layout and show the combined plot
-plt.tight_layout()
-plt.show()
-
-
-
-
-
+# Check model size
+feature_extractor_size = os.path.getsize('hybrid_feature_extractor.h5') / (1024 * 1024)
+print(f"\n✓ Feature Extractor Model Size: {feature_extractor_size:.2f} MB")
