@@ -1,165 +1,138 @@
-
-import numpy as np
-import tensorflow as tf
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, precision_score, recall_score, f1_score
+
+# Define classifiers - Extended set
+classifiers = {
+    'Logistic Regression': LogisticRegression(),
+    'SVM': SVC(random_state=42),
+    'Random Forest': RandomForestClassifier(random_state=42),
+    'KNN': KNeighborsClassifier(),
+    'Decision Tree': DecisionTreeClassifier(random_state=42),
+    'Naive Bayes': GaussianNB(),
+    'MLP': MLPClassifier(max_iter=1000, random_state=42)
+}
+
+# Define parameter grids for grid search
+param_grids = {
+    'Logistic Regression': { 'C': [0.01, 0.1, 1, 10], 
+                             'solver': ['lbfgs', 'liblinear']
+},
+    'SVM': {
+        'C': [0.1, 1, 10],
+        'kernel': ['linear', 'rbf'],
+        'gamma': ['scale', 'auto']
+    },
+    'Random Forest': {
+        'n_estimators': [100, 200, 300],
+        'max_depth': [10, 20, None],
+        'min_samples_split': [2, 5, 10]
+    },
+    'KNN': {
+        'n_neighbors': [3, 5, 7, 9],
+        'weights': ['uniform', 'distance'],
+        'metric': ['euclidean', 'manhattan']
+    },
+    'Decision Tree': {
+        'max_depth': [10, 20, None],
+        'min_samples_split': [2, 5, 10],
+        'criterion': ['gini', 'entropy']
+    },
+    'Naive Bayes': {
+        'var_smoothing': [1e-9, 1e-8, 1e-7]
+    },
+    'MLP': {
+        'hidden_layer_sizes': [(100,), (200,), (100, 50)],
+        'activation': ['relu', 'tanh'],
+        'alpha': [0.0001, 0.001],
+        'learning_rate_init': [0.001, 0.01]
+    }
+}
 
 
-X_train = np.load("X_train.npy")
-X_test = np.load("X_test.npy")
-y_train = np.load("y_train.npy")
-y_test = np.load("y_test.npy")
+print("7 Classifiers configured with parameter grids for optimization!")
+print(f"Models: {list(classifiers.keys())}")
 
-y_train = np.argmax(y_train, axis=1)
-y_test = np.argmax(y_test, axis=1)
+# Store results
+results = {}
+best_models = {}
 
-print(f"Loaded feature shapes: Train {X_train.shape}, Test {X_test.shape}")
+# Train each classifier
+for clf_name, clf in classifiers.items():
+    print(f"\n{'='*50}")
+    print(f"Training {clf_name}")
+    print('='*50)
     
-
-### 📌 Train and Evaluate Each Model Using Extracted Features
-
-# K-Nearest Neighbors (KNN)
-KNN = KNeighborsClassifier(n_neighbors=5)
-KNN.fit(X_train, y_train)
-y_pred_knn = KNN.predict(X_test)
-display_results(KNN, y_pred_knn, "KNN")
-
-def display_results(model, y_pred, KNN):
-    # Compute Metrics
+    # Grid search
+    grid_search = GridSearchCV(
+        estimator=clf,
+        param_grid=param_grids[clf_name],
+        cv=5,
+        scoring='accuracy',
+        n_jobs=-1,
+        verbose=1
+    )
+    
+    # Fit the model
+    grid_search.fit(X_train_features, y_train)
+    
+    # Get best model
+    best_model = grid_search.best_estimator_
+    best_models[clf_name] = best_model
+    
+    # Assign for saving
+    best_model_Ausl = best_model  
+    
+    # Make predictions
+    y_pred = best_model.predict(X_test_features)
+    
+    # Calculate metrics
     accuracy = accuracy_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred, average='weighted')
     recall = recall_score(y_test, y_pred, average='weighted')
     f1 = f1_score(y_test, y_pred, average='weighted')
+    
+    # ROC-AUC (if classifier supports probability prediction)
+    try:
+        y_proba = best_model.predict_proba(X_test_features)
+        roc_auc = roc_auc_score(y_test, y_proba, multi_class='ovr', average='weighted')
+    except AttributeError:
+        roc_auc = None  # Some models (like SVM without probability=True) don't support predict_proba
+    
+    # Store results
+    results[clf_name] = {
+        'model': best_model,
+        'best_params': grid_search.best_params_,
+        'cv_score': grid_search.best_score_,
+        'test_accuracy': accuracy,
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1_score': f1,
+        'roc_auc': roc_auc
+    }
+    
+    # Save the model
+    filename = f"model_{clf_name.replace(' ', '_').lower()}_ausl.pkl"
+    joblib.dump(best_model_Ausl, filename)
+    print(f"✓ Model saved as {filename}")
 
-    # Print formatted metrics
-    print(f"\n{KNN} Classification Report:\n")
-    print(f"Accuracy = {accuracy:.16f}")
-    print(f"F1-Score {f1:.16f}")
-    print(f"Recall {recall:.16f}")
-    print(f"Precision {precision:.16f}\n")
-    print(classification_report(y_test, y_pred))
-    
-    cm = confusion_matrix(y_test, y_pred)
-    plt.figure(figsize=(12, 10))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=[chr(i) for i in range(65, 91)], yticklabels=[chr(i) for i in range(65, 91)])
-    plt.title(f"{KNN} - Confusion Matrix")
-    plt.xlabel("Predicted Label")
-    plt.ylabel("Actual Label")
-    plt.show()
+# ================================
+# Convert results to DataFrame
+# ================================
+metrics_df = pd.DataFrame.from_dict(results, orient='index')
+metrics_df = metrics_df.drop(columns=['model', 'predictions'], errors='ignore')  # drop non-numeric cols
+print("\n📊 Model Comparison Table:\n")
+print(metrics_df.round(4))
 
-# Logistic Regression (LR) - Best Performing Model
-LR = LogisticRegression(
-    max_iter=2000,
-    solver='lbfgs',  
-    C=1.0,            
-    penalty='l2',     
-    multi_class='multinomial',  
-    class_weight='balanced'
-)
-LR.fit(X_train, y_train)
-y_pred_lr = LR.predict(X_test)
-display_results(LR, y_pred_lr, "Logistic Regression")
 
-def display_results(model, y_pred,KNN):
-    # Compute Metrics
-    accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred, average='weighted')
-    recall = recall_score(y_test, y_pred, average='weighted')
-    f1 = f1_score(y_test, y_pred, average='weighted')
-    
-    # Print formatted metrics
-    print(f"\n{LR} Classification Report:\n")
-    print(f"Accuracy = {accuracy:.16f}")
-    print(f"F1-Score {f1:.16f}")
-    print(f"Recall {recall:.16f}")
-    print(f"Precision {precision:.16f}\n")
-    print(classification_report(y_test, y_pred))
-    
-    # Generate Confusion Matrix (Styled as Per Your Image)
-    cm = confusion_matrix(y_test, y_pred)
-    plt.figure(figsize=(12, 10))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=[chr(i) for i in range(65, 91)], yticklabels=[chr(i) for i in range(65, 91)])
-    plt.title(f"{LR} - Confusion Matrix")
-    plt.xlabel("Predicted Label")
-    plt.ylabel("Actual Label")
-    plt.show()
-    
-# Random Forest (RF)
-RF = RandomForestClassifier(n_estimators=100, random_state=42)
-RF.fit(X_train, y_train)
-y_pred_rf = RF.predict(X_test)
-display_results(RF, y_pred_rf, "Random Forest")
-
-    # Print formatted metrics
-    print(f"\n{RF} Classification Report:\n")
-    print(f"Accuracy = {accuracy:.16f}")
-    print(f"F1-Score {f1:.16f}")
-    print(f"Recall {recall:.16f}")
-    print(f"Precision {precision:.16f}\n")
-    print(classification_report(y_test, y_pred))
-    
-    # Generate Confusion Matrix (Styled as Per Your Image)
-    cm = confusion_matrix(y_test, y_pred)
-    plt.figure(figsize=(12, 10))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=[chr(i) for i in range(65, 91)], yticklabels=[chr(i) for i in range(65, 91)])
-    plt.title(f"{RF} - Confusion Matrix")
-    plt.xlabel("Predicted Label")
-    plt.ylabel("Actual Label")
-    plt.show()
-    
-    
-# Naive Bayes (NB)
-NB = GaussianNB()
-NB.fit(X_train, y_train)
-y_pred_nb = NB.predict(X_test)
-display_results(NB, y_pred_nb, "Naive Bayes")
-
-    # Print formatted metrics
-    print(f"\n{NB} Classification Report:\n")
-    print(f"Accuracy = {accuracy:.16f}")
-    print(f"F1-Score {f1:.16f}")
-    print(f"Recall {recall:.16f}")
-    print(f"Precision {precision:.16f}\n")
-    print(classification_report(y_test, y_pred))
-    
-    # Generate Confusion Matrix (Styled as Per Your Image)
-    cm = confusion_matrix(y_test, y_pred)
-    plt.figure(figsize=(12, 10))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=[chr(i) for i in range(65, 91)], yticklabels=[chr(i) for i in range(65, 91)])
-    plt.title(f"{NB} - Confusion Matrix")
-    plt.xlabel("Predicted Label")
-    plt.ylabel("Actual Label")
-    plt.show()
-
-# Decision Tree (DT)
-DT = DecisionTreeClassifier(random_state=42)
-DT.fit(X_train, y_train)
-y_pred_dt = DT.predict(X_test)
-display_results(DT, y_pred_dt, "Decision Tree")
-
-    # Print formatted metrics
-    print(f"\n{DT} Classification Report:\n")
-    print(f"Accuracy = {accuracy:.16f}")
-    print(f"F1-Score {f1:.16f}")
-    print(f"Recall {recall:.16f}")
-    print(f"Precision {precision:.16f}\n")
-    print(classification_report(y_test, y_pred))
-    
-    # Generate Confusion Matrix (Styled as Per Your Image)
-    cm = confusion_matrix(y_test, y_pred)
-    plt.figure(figsize=(12, 10))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=[chr(i) for i in range(65, 91)], yticklabels=[chr(i) for i in range(65, 91)])
-    plt.title(f"{DT} - Confusion Matrix")
-    plt.xlabel("Predicted Label")
-    plt.ylabel("Actual Label")
-    plt.show()
 
 
 
