@@ -1,36 +1,59 @@
-# Mobile-Net-Based-Sign-Language-Recognition-
-This repository contains the implementation and evaluation of a lightweight, high-performance MobileNet-based model designed for real-time sign language recognition. Optimized for portability and computational efficiency, it is ideal for deployment on edge devices and mobile applications. Additionally, it includes various machine learning and deep learning models trained for sign language recognition, ensuring robust performance across different scenarios.
+#Tailored MobileNet Self-Attention KNN (TMSK) for Sign Language Recognition
 
-# Features
-Lightweight & Efficient - Optimized for real-time performance on edge devices.
-Preprocessing & Augmentation - Efficient image processing pipeline.
-Deep Learning Models - H-Deaf Net, and other pre-trained networks.
-Machine Learning Models - Decision Trees, Random Forest, Logistic Regression, Naive Bayes, K-Nearest Neighbour.
-Performance Evaluation - Classification reports and accuracy comparisons.
+This repository presents a hybrid deep learning and machine learning framework designed for efficient and accurate sign language recognition (SLR). The proposed Tailored MobileNet Self-Attention KNN (TMSK) model combines the feature extraction capability of MobileNet, the global spatial understanding of a Self-Attention module, and the robust classification power of K-Nearest Neighbors (KNN). The model is optimized for portability, low memory usage, and real-time performance, making it suitable for deployment on mobile and embedded systems.
 
-# Models Included
-## Deep Learning Models
-MSLR-Net	Lightweight, high-speed deep learning model
-H-Deaf Net	Deep learning model for comparison
-Pretrained Models	DenseNet169, ResNet50, NASNetMobile, Xception
-## Machine Learning Models
-Decision Tree (DT)	Rule-based classification
-Random Forest (RF)	Ensemble of decision trees
-K-Nearest Neighbors (KNN)	Distance-based classification
-Gaussian Naïve Bayes (GNB)	Probabilistic classification
-Logistic Regression (LR)	Linear classification
+#Overview
+🏗️ Architecture
 
-# Results
-The repository also includes performance evaluation figures:
+The TMSK architecture is composed of three major components:
 
-# Confusion Matrix 
-Displays the classification performance for different signs.
-# Classification Report
-Provides precision, recall, F1-score, and accuracy metrics for each class.
+##Tailored MobileNet Backbone:
 
-# Clone the Repository
-git clone https://github.com/your-username/Mobile-Net-Based-Sign-Language-Recognition.git
-cd Mobile-Net-Based-Sign-Language-Recognition
+Modified lightweight convolutional layers for efficient local feature extraction.
 
-# Install Dependencies
-pip install -r requirements.txt
+Depthwise separable convolutions reduce computation while preserving detail.
+
+##Self-Attention Block:
+
+Enhances the feature map by modeling long-range spatial dependencies.
+
+Improves the network’s understanding of complex gestures and overlapping hand movements.
+
+##KNN Classifier:
+
+Replaces the traditional dense classification head with a lightweight and interpretable KNN model.
+
+Achieves high accuracy with minimal memory footprint (~5 MB).
+
+⚙️ Preprocessing & Data Augmentation
+
+A robust preprocessing pipeline was implemented to ensure clean and consistent input across datasets:
+
+Hand Detection and Cropping: Using MediaPipe Hands to detect hand landmarks and crop bounding boxes.
+
+Fixed Margin Cropping: A 20-pixel margin added to preserve context around the hand region.
+
+Noise Reduction: Gaussian blurring to smooth illumination variations.
+
+Resizing: All images resized to 224×224 pixels for MobileNet compatibility.
+
+🗂️ Datasets Used
+
+The model was trained and tested on multiple benchmark datasets to assess performance and generalization:
+
+Dataset	Type	Classes	Samples	Description
+Australian Sign Language dataset with alphabets and digits
+(MNIST)	American Sign Language digits and alphabets
+ASL Finger Spelling	Alphabetic with Spcal Signs
+Indian Sign Language alphabets (complex backgrounds)
+LSA64	Video	64 videos	Argentinian Sign Language dynamic dataset (verbs and nouns)
+
+📈 Visualization
+
+Learning Curves: Training and validation accuracy across epochs.
+
+Confusion Matrices: Class-wise prediction performance.
+
+Feature Fusion Diagram: MobileNet + Self-Attention integration.
+
+Prediction Visualization: Correct (green) and incorrect (red) results.
