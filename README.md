@@ -46,7 +46,7 @@ ASL Finger Spelling	Alphabetic with Spcal Signs
 Indian Sign Language alphabets (complex backgrounds)
 LSA64	Video	64 videos	Argentinian Sign Language dynamic dataset (verbs and nouns)
 
-##Visualization
+## Visualization
 
 Learning Curves: Training and validation accuracy across epochs.
 
