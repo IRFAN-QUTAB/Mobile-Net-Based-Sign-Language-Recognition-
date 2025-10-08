@@ -132,8 +132,73 @@ metrics_df = metrics_df.drop(columns=['model', 'predictions'], errors='ignore') 
 print("\n📊 Model Comparison Table:\n")
 print(metrics_df.round(4))
 
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import learning_curve
 
+plt.figure(figsize=(12, 8))
 
+colors = plt.cm.tab10(np.linspace(0, 1, len(best_models)))  # distinct colors
+
+for (clf_name, clf), color in zip(best_models.items(), colors):
+    print(f"Generating learning curve for {clf_name}...")
+
+    train_sizes, train_scores, test_scores = learning_curve(
+        clf,
+        X_train_features,
+        y_train,
+        cv=5,
+        scoring="accuracy",
+        n_jobs=-1,
+        train_sizes=np.linspace(0.1, 1.0, 5)  # from 10% to 100% of data
+    )
+
+    # Mean across folds
+    train_scores_mean = np.mean(train_scores, axis=1)
+    test_scores_mean = np.mean(test_scores, axis=1)
+
+    # Plot training accuracy
+    plt.plot(train_sizes, train_scores_mean, 
+             color=color, linewidth=2, 
+             label=f"{clf_name} (Train)")
+
+    # Plot validation accuracy
+    plt.plot(train_sizes, test_scores_mean, 
+             color=color, linewidth=2, linestyle='--', 
+             label=f"{clf_name} (Validation)")
+
+plt.title("Learning Curves of Classifiers (Experiment #1)", fontsize=14)
+plt.xlabel("Training Set Size", fontsize=12)
+plt.ylabel("Accuracy", fontsize=12)
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.show()
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+import numpy as np
+
+# Get class names (e.g., '0'-'9', 'A'-'Z')
+class_names = label_encoder.classes_
+
+# Compute confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+
+# Plot the confusion matrix
+plt.figure(figsize=(12, 10))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+plt.title(f'Confusion Matrix for {best_model} on AUSL Test Set')
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.xticks(rotation=45)
+plt.yticks(rotation=0)
+plt.tight_layout()
+plt.show()
+
+# Optionally, save the plot
+# plt.savefig('confusion_matrix_ausl.png')
 
 
 
