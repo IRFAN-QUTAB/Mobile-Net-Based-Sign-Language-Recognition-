@@ -42,7 +42,7 @@ The model was trained and tested on multiple benchmark datasets to assess perfor
 Dataset	Type	Classes	Samples	Description
 Australian Sign Language dataset with alphabets and digits, 
 (MNIST)	American Sign Language digits and alphabets, 
-ASL Finger Spelling	Alphabetic with Spcal Signs, 
+ASL Finger Spelling	Alphabetic with Special Signs, 
 Indian Sign Language alphabets (complex backgrounds), 
 LSA64	Video	64 videos	Argentinian Sign Language dynamic dataset (verbs and nouns)
 
