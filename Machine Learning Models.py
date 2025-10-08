@@ -197,8 +197,53 @@ plt.yticks(rotation=0)
 plt.tight_layout()
 plt.show()
 
-# Optionally, save the plot
-# plt.savefig('confusion_matrix_ausl.png')
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Find indices of misclassified and correctly classified samples
+misclassified_idx = np.where(y_pred != y_test)[0]
+correct_idx = np.where(y_pred == y_test)[0]
+
+# Select up to 6 misclassified and 6 correctly classified samples (or all if fewer)
+n_correct = min(5, len(correct_idx))
+n_misclassified = min(3, len(misclassified_idx))
+
+
+correct_sample_idx = np.random.choice(correct_idx, n_correct, replace=False) if n_correct > 0 else []
+misclassified_sample_idx = np.random.choice(misclassified_idx, n_misclassified, replace=False) if n_misclassified > 0 else []
+
+
+# Combine indices
+sample_idx = np.concatenate([misclassified_sample_idx, correct_sample_idx])
+n_samples = len(sample_idx)
+
+if n_samples == 0:
+    print("No samples to display (no correct or incorrect predictions found)!")
+else:
+    # Decode labels
+    true_labels = label_encoder.inverse_transform(y_test[sample_idx])
+    pred_labels = label_encoder.inverse_transform(y_pred[sample_idx])
+
+    # Create figure with 3x4 grid
+    fig, axes = plt.subplots(3, 4, figsize=(12, 9))
+    
+    for i, ax in enumerate(axes.flat):
+        if i < n_samples:
+            img = X_test[sample_idx[i]]  # Assuming images are in [0,1] range; if not, normalize with /255.0
+            ax.imshow(img)
+            # Set title color based on correct/incorrect prediction
+            title_color = 'red' if y_pred[sample_idx[i]] != y_test[sample_idx[i]] else 'green'
+            ax.set_title(f"True: {true_labels[i]}\nPred: {pred_labels[i]}", color=title_color)
+            ax.axis('off')
+        else:
+            ax.axis('off')  # Hide unused subplots
+    
+    plt.suptitle(f' Correct and Incorrect Predictions for {best_model} on AUSL Test Set')
+    plt.tight_layout()
+    plt.show()
+
+    # Optionally, save the plot
+    # plt.savefig('mixed_predictions_ausl.png')
 
 
 
