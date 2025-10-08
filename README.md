@@ -1,25 +1,25 @@
-#Tailored MobileNet Self-Attention KNN (TMSK) for Sign Language Recognition
+# Tailored MobileNet Self-Attention KNN (TMSK) for Sign Language Recognition
 
 This repository presents a hybrid deep learning and machine learning framework designed for efficient and accurate sign language recognition (SLR). The proposed Tailored MobileNet Self-Attention KNN (TMSK) model combines the feature extraction capability of MobileNet, the global spatial understanding of a Self-Attention module, and the robust classification power of K-Nearest Neighbors (KNN). The model is optimized for portability, low memory usage, and real-time performance, making it suitable for deployment on mobile and embedded systems.
 
-#Overview
+# Overview
 🏗️ Architecture
 
 The TMSK architecture is composed of three major components:
 
-##Tailored MobileNet Backbone:
+## Tailored MobileNet Backbone:
 
 Modified lightweight convolutional layers for efficient local feature extraction.
 
 Depthwise separable convolutions reduce computation while preserving detail.
 
-##Self-Attention Block:
+## Self-Attention Block:
 
 Enhances the feature map by modeling long-range spatial dependencies.
 
 Improves the network’s understanding of complex gestures and overlapping hand movements.
 
-##KNN Classifier:
+## KNN Classifier:
 
 Replaces the traditional dense classification head with a lightweight and interpretable KNN model.
 
