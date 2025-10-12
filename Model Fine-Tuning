@@ -1,1 +1,169 @@
+class SelfAttention(keras.layers.Layer):
+    def __init__(self, units, **kwargs):
+        super(SelfAttention, self).__init__(**kwargs)
+        self.units = units
+        
+    def build(self, input_shape):
+        self.W_query = Dense(self.units)
+        self.W_key = Dense(self.units)
+        self.W_value = Dense(self.units)
+        self.W_output = Dense(input_shape[-1])
+        super().build(input_shape)
+        
+    def call(self, x):
+        batch_size = tf.shape(x)[0]
+        height = tf.shape(x)[1]
+        width = tf.shape(x)[2]
+        channels = x.shape[-1]
+        
+        x_reshaped = tf.reshape(x, [batch_size, height * width, channels])
+        
+        Q = self.W_query(x_reshaped)
+        K = self.W_key(x_reshaped)
+        V = self.W_value(x_reshaped)
+        
+        scores = tf.matmul(Q, K, transpose_b=True)
+        scores = scores / tf.math.sqrt(tf.cast(self.units, tf.float32))
+        
+        attention_weights = tf.nn.softmax(scores, axis=-1)
+        attention_output = tf.matmul(attention_weights, V)
+        output = self.W_output(attention_output)
+        output = tf.reshape(output, [batch_size, height, width, channels])
+        output = x + output
+        
+        return output
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({'units': self.units})
+        return config
 
+try:
+    custom_objects = {'SelfAttention': SelfAttention}
+    base_model = tf.keras.models.load_model('hybrid_feature_extractor.h5', 
+                                            custom_objects=custom_objects)
+    print(f"✓ Loaded pretrained model: {base_model.name}")
+    print(f"  Input shape: {base_model.input_shape}")
+    print(f"  Output shape: {base_model.output_shape}")
+except:
+    print("⚠️ Could not load pretrained model. Please ensure 'hybrid_feature_extractor.h5' exists")
+    raise
+
+inputs = base_model.input
+features = base_model.output
+
+x = Dense(512, activation='relu', name='ft_feature_dense1')(features)
+x = LayerNormalization(name='ft_feature_norm1')(x)
+x = Dense(256, activation='relu', name='ft_feature_dense2')(x)
+refined_features = LayerNormalization(name='ft_feature_norm2')(x)
+
+finetune_model = keras.Model(inputs=inputs, outputs=refined_features, 
+                              name='hybrid_finetuned_feature_extractor')
+
+print("\nConfiguring trainable layers...")
+
+for layer in base_model.layers[:-10]:
+    layer.trainable = False
+
+trainable_params = sum([tf.size(w).numpy() for w in finetune_model.trainable_weights])
+total_params = sum([tf.size(w).numpy() for w in finetune_model.weights])
+
+print(f"✓ Model architecture completed")
+print(f"  Total layers: {len(finetune_model.layers)}")
+print(f"  Trainable parameters: {trainable_params:,}")
+print(f"  Total parameters: {total_params:,}")
+print(f"  Percentage trainable: {trainable_params/total_params:.1%}")
+print(f"  Output feature dimension: {refined_features.shape[-1]}")
+
+
+def contrastive_loss(y_true, y_pred, temperature=0.5):
+    y_pred = tf.nn.l2_normalize(y_pred, axis=1)
+    
+    similarity_matrix = tf.matmul(y_pred, y_pred, transpose_b=True)
+    similarity_matrix = similarity_matrix / temperature
+    
+    labels = tf.argmax(y_true, axis=1)
+    labels = tf.expand_dims(labels, 1)
+    mask = tf.equal(labels, tf.transpose(labels))
+    mask = tf.cast(mask, tf.float32)
+    
+    logits_mask = tf.ones_like(mask) - tf.eye(tf.shape(mask)[0])
+    mask = mask * logits_mask
+    
+    exp_logits = tf.exp(similarity_matrix) * logits_mask
+    log_prob = similarity_matrix - tf.math.log(tf.reduce_sum(exp_logits, axis=1, keepdims=True))
+    
+    mean_log_prob_pos = tf.reduce_sum(mask * log_prob, axis=1) / (tf.reduce_sum(mask, axis=1) + 1e-10)
+    loss = -mean_log_prob_pos
+    
+    return tf.reduce_mean(loss)
+
+finetune_model.compile(
+    optimizer=Adam(learning_rate=0.0001),
+    loss=contrastive_loss
+)
+
+callbacks = [
+    EarlyStopping(
+        monitor='val_loss',
+        patience=10,
+        restore_best_weights=True,
+        verbose=1
+    ),
+    ModelCheckpoint(
+        'hybrid_finetuned_feature_extractor.h5',
+        monitor='val_loss',
+        save_best_only=True,
+        verbose=1
+    ),
+    ReduceLROnPlateau(
+        monitor='val_loss',
+        factor=0.5,
+        patience=5,
+        min_lr=0.00001,
+        verbose=1
+    )
+]
+
+print("Starting training...")
+print("-" * 40)
+
+history = finetune_model.fit(
+    X_train, y_train_cat,
+    validation_data=(X_val, y_val_cat),
+    epochs=20,
+    batch_size=32,
+    callbacks=callbacks,
+    verbose=1
+)
+
+print("\n" + "="*50)
+print("Fine-tuning Complete!")
+print("="*50)
+print(f"✓ Model saved as: hybrid_finetuned_feature_extractor.h5")
+print(f"✓ Output: {refined_features.shape[-1]}-dimensional feature vectors")
+print("\nUsage:")
+print("  features = finetune_model.predict(images)")
+
+
+print("\n" + "="*50)
+print("Extracting Features")
+print("="*50)
+
+train_features = finetune_model.predict(X_train, batch_size=32, verbose=1)
+val_features = finetune_model.predict(X_val, batch_size=32, verbose=1)
+
+print(f"\n✓ Training features shape: {train_features.shape}")
+print(f"✓ Validation features shape: {val_features.shape}")
+
+import numpy as np
+np.save('train_features.npy', train_features)
+np.save('val_features.npy', val_features)
+np.save('train_labels.npy', y_train)
+np.save('val_labels.npy', y_val)
+
+print("\n✓ Features saved:")
+print("  - train_features.npy")
+print("  - val_features.npy")
+print("  - train_labels.npy")
+print("  - val_labels.npy")
