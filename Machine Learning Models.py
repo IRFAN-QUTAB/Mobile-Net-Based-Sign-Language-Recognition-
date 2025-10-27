@@ -36,7 +36,7 @@ param_grids = {
         'min_samples_split': [2, 5, 10]
     },
     'KNN': {
-        'n_neighbors': [3, 5, 7, 9],
+        'n_neighbors': [1, 3, 5, 7, 9],
         'weights': ['uniform', 'distance'],
         'metric': ['euclidean', 'manhattan']
     },
