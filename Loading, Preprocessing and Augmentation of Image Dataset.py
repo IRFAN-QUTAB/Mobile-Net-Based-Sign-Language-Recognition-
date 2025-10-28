@@ -26,7 +26,7 @@ class ASLDataLoader:
         self.images = []
         self.labels = []
         
-    def preprocess_image(self, img, margin=15, augment=True):
+    def preprocess_image(self, img, margin=20, augment=True):
         """Preprocessing + Augmentation pipeline (WITHOUT rotation)"""
         # Convert to RGB
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
