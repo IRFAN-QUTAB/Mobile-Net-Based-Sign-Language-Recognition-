@@ -37,7 +37,7 @@ def build_mobilenet_model(input_shape=(224, 224, 3), num_classes=26):
     x = GlobalAveragePooling2D()(x)
 
     x = Flatten()(x)
-    x = Dense(512, activation="relu")(x)
+    x = Dense(256, activation="relu")(x)
     outputs = Dense(num_classes, activation="softmax")(x) 
 
     model = Model(inputs, outputs)
